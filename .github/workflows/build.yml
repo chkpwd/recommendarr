@@ -2,10 +2,10 @@ name: Image Build
 
 on:
   schedule:
-    - cron: '0 0 * * *' # nightly
+    - cron: "0 0 * * *" # nightly
   push:
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
       - development
@@ -14,11 +14,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.platform == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
-    strategy:
-      matrix:
-        platform: ["amd64", "arm64"]
-      fail-fast: false
+    runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -51,10 +47,15 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/recommendarr
             ghcr.io/${{ github.repository_owner }}/recommendarr
           tags: |
+            type=ref,event=pr
             type=semver,pattern={{raw}}
             type=semver,pattern={{major}}
             type=schedule,pattern={{raw}}
             type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=alpha,event=pr,enable=${{ startsWith(github.ref, 'refs/heads/alpha') }}
+            type=semver,prefix=alpha-v,pattern={{version}},event=pr,enable=${{ startsWith(github.ref, 'refs/heads/alpha') }}
+            type=raw,value=dev,enable=${{ startsWith(github.ref, 'refs/heads/development') }} 
+            type=semver,prefix=dev-v,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/heads/development') }}
 
       - name: Build and push Docker images
         uses: docker/build-push-action@v5
@@ -63,16 +64,11 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
-          platforms: linux/${{ matrix.platform }}
+          platforms: linux/amd64,linux/arm64
           cache-from: |
-            ${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2}-{3},mode=max', github.repository_owner, matrix.platform, steps.package_version.outputs.VERSION) }}
+            ${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2}-{3},mode=max', github.repository_owner, steps.package_version.outputs.VERSION) }}
           cache-to: |
-            ${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2}-{3}', github.repository_owner, matrix.platform, steps.package_version.outputs.VERSION) || '' }}
-        if: |
-          github.event_name == 'push' && (
-            github.ref == 'refs/heads/development' ||
-            startsWith(github.ref, 'refs/tags/v') ||
-            github.event_name == 'pull_request')
+            ${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2}-{3}', github.repository_owner, steps.package_version.outputs.VERSION) || '' }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
