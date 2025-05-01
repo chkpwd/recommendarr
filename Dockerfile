@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build-stage
+FROM node:23-alpine-slim AS build-stage
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ COPY public ./public
 
 RUN npm run build
 
-FROM node:22-alpine AS prod-stage
+FROM node:23-alpine-slim AS prod-stage
 
 USER root
 WORKDIR /app

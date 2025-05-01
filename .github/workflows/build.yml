@@ -1,14 +1,9 @@
 name: Image Build
 
 on:
-  schedule:
-    - cron: "0 0 * * *" # nightly
   push:
     tags:
       - "v*"
-  pull_request:
-    branches:
-      - development
   release:
     types: [published]
 
@@ -21,12 +16,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -44,20 +33,16 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/recommendarr
             ghcr.io/${{ github.repository_owner }}/recommendarr
           tags: |
             type=ref,event=pr
             type=semver,pattern={{raw}}
             type=semver,pattern={{major}}
             type=schedule,pattern={{raw}}
+            type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=alpha,event=pr,enable=${{ startsWith(github.ref, 'refs/heads/alpha') }}
-            type=semver,prefix=alpha-v,pattern={{version}},event=pr,enable=${{ startsWith(github.ref, 'refs/heads/alpha') }}
-            type=raw,value=dev,enable=${{ startsWith(github.ref, 'refs/heads/development') }} 
-            type=semver,prefix=dev-v,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/heads/development') }}
 
-      - name: Build and push Docker images
+      - name: Build and push image
         uses: docker/build-push-action@v5
         with:
           push: true
@@ -66,12 +51,6 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           platforms: linux/amd64,linux/arm64
           cache-from: |
-            ${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2}-{3},mode=max', github.repository_owner, steps.package_version.outputs.VERSION) }}
+            ${{ format('type=registry,ref=ghcr.io/{0}/build_cache, mode=max') }}
           cache-to: |
-            ${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2}-{3}', github.repository_owner, steps.package_version.outputs.VERSION) || '' }}
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.builder.outputs.OUTPUT_FILE }}
-          path: ${{ steps.builder.outputs.OUTPUT_FILE }}
+            ${{ format('type=registry,ref=ghcr.io/{0}/build_cache', github.repository_owner) }}
