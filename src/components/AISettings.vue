@@ -12,6 +12,15 @@
         Account
       </button>
       <button 
+        v-if="isAdmin"
+        @click="activeTab = 'users'" 
+        :class="{ active: activeTab === 'users' }" 
+        class="tab-button"
+      >
+        User Management
+      </button>
+      <button 
+        v-if="isAdmin"
         @click="activeTab = 'ai'" 
         :class="{ active: activeTab === 'ai' }" 
         class="tab-button"
@@ -19,6 +28,7 @@
         AI Service
       </button>
       <button 
+        v-if="isAdmin"
         @click="activeTab = 'sonarr'" 
         :class="{ active: activeTab === 'sonarr' }" 
         class="tab-button"
@@ -26,6 +36,7 @@
         Sonarr
       </button>
       <button 
+        v-if="isAdmin"
         @click="activeTab = 'radarr'" 
         :class="{ active: activeTab === 'radarr' }" 
         class="tab-button"
@@ -33,6 +44,7 @@
         Radarr
       </button>
       <button 
+        v-if="isAdmin"
         @click="activeTab = 'plex'" 
         :class="{ active: activeTab === 'plex' }" 
         class="tab-button"
@@ -40,6 +52,7 @@
         Plex
       </button>
       <button 
+        v-if="isAdmin"
         @click="activeTab = 'jellyfin'" 
         :class="{ active: activeTab === 'jellyfin' }" 
         class="tab-button"
@@ -47,6 +60,7 @@
         Jellyfin
       </button>
       <button 
+        v-if="isAdmin"
         @click="activeTab = 'tautulli'" 
         :class="{ active: activeTab === 'tautulli' }" 
         class="tab-button"
@@ -61,6 +75,7 @@
         Trakt
       </button>
       <button 
+        v-if="isAdmin"
         @click="activeTab = 'tmdb'" 
         :class="{ active: activeTab === 'tmdb' }" 
         class="tab-button"
@@ -69,171 +84,14 @@
       </button>
     </div>
     
-    <!-- Connected Services Section -->
-    <div v-if="sonarrConnected || radarrConnected || plexConnected || jellyfinConnected || tautulliConnected || traktConnected" class="section-card connected-services-wrapper">
-      <div class="collapsible-header" @click="toggleConnectionsPanel">
-        <h3>Manage Connected Services</h3>
-        <button class="collapse-toggle">
-          <svg :class="{ 'rotate': showConnectionsPanel }" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-        </button>
+    <!-- User Management Tab (Admin Only) -->
+    <div v-if="activeTab === 'users' && isAdmin" class="settings-section">
+      <div class="settings-intro">
+        <p>Manage user accounts and permissions for Recommendarr.</p>
       </div>
-      <div v-if="showConnectionsPanel" class="collapsible-content">
-        <p class="section-description">You can disconnect any service you no longer want to use.</p>
-        <div class="connected-services">
-          <button v-if="plexConnected" class="connection-button plex-button" @click="showPlexConnectModal">
-            <span class="connection-name">Plex</span>
-            <span class="connection-action">Manage Connection</span>
-          </button>
-          <button v-if="jellyfinConnected" class="connection-button jellyfin-button" @click="showJellyfinConnectModal">
-            <span class="connection-name">Jellyfin</span>
-            <span class="connection-action">Manage Connection</span>
-          </button>
-          <button v-if="tautulliConnected" class="connection-button tautulli-button" @click="showTautulliConnectModal">
-            <span class="connection-name">Tautulli</span>
-            <span class="connection-action">Manage Connection</span>
-          </button>
-          <button v-if="sonarrConnected" class="connection-button sonarr-button" @click="showSonarrConnectModal">
-            <span class="connection-name">Sonarr</span>
-            <span class="connection-action">Manage Connection</span>
-          </button>
-          <button v-if="radarrConnected" class="connection-button radarr-button" @click="showRadarrConnectModal">
-            <span class="connection-name">Radarr</span>
-            <span class="connection-action">Manage Connection</span>
-          </button>
-          <button v-if="traktConnected" class="connection-button trakt-button" @click="showTraktConnectModal">
-            <span class="connection-name">Trakt</span>
-            <span class="connection-action">Manage Connection</span>
-          </button>
-        </div>
-      </div>
+      
+      <UserManagement />
     </div>
-    
-    <!-- Connection Management Modals - These are fixed position overlays -->
-    <teleport to="body">
-      <!-- Plex Connection Management Modal -->
-      <div v-if="showPlexConnect" class="connection-modal-overlay" @click.self="closePlexModal">
-        <div class="connection-modal">
-          <div class="modal-header">
-            <h3>Manage Plex Connection</h3>
-            <button class="modal-close-x" @click="closePlexModal">&times;</button>
-          </div>
-          <div class="modal-body">
-            <PlexConnection 
-              :connected="plexConnected" 
-              @connected="handlePlexConnected" 
-              @disconnected="handlePlexDisconnected" 
-            />
-          </div>
-          <div class="modal-footer">
-            <button class="modal-close-button" @click="closePlexModal">Close</button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Jellyfin Connection Management Modal -->
-      <div v-if="showJellyfinConnect" class="connection-modal-overlay" @click.self="closeJellyfinModal">
-        <div class="connection-modal">
-          <div class="modal-header">
-            <h3>Manage Jellyfin Connection</h3>
-            <button class="modal-close-x" @click="closeJellyfinModal">&times;</button>
-          </div>
-          <div class="modal-body">
-            <JellyfinConnection 
-              :connected="jellyfinConnected" 
-              @connected="handleJellyfinConnected" 
-              @disconnected="handleJellyfinDisconnected" 
-            />
-          </div>
-          <div class="modal-footer">
-            <button class="modal-close-button" @click="closeJellyfinModal">Close</button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Sonarr Connection Management Modal -->
-      <div v-if="showSonarrConnect" class="connection-modal-overlay" @click.self="closeSonarrModal">
-        <div class="connection-modal">
-          <div class="modal-header">
-            <h3>Manage Sonarr Connection</h3>
-            <button class="modal-close-x" @click="closeSonarrModal">&times;</button>
-          </div>
-          <div class="modal-body">
-            <SonarrConnection 
-              :connected="sonarrConnected" 
-              @connected="handleSonarrConnected" 
-              @disconnected="handleSonarrDisconnected" 
-            />
-          </div>
-          <div class="modal-footer">
-            <button class="modal-close-button" @click="closeSonarrModal">Close</button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Radarr Connection Management Modal -->
-      <div v-if="showRadarrConnect" class="connection-modal-overlay" @click.self="closeRadarrModal">
-        <div class="connection-modal">
-          <div class="modal-header">
-            <h3>Manage Radarr Connection</h3>
-            <button class="modal-close-x" @click="closeRadarrModal">&times;</button>
-          </div>
-          <div class="modal-body">
-            <RadarrConnection 
-              :connected="radarrConnected" 
-              @connected="handleRadarrConnected" 
-              @disconnected="handleRadarrDisconnected" 
-            />
-          </div>
-          <div class="modal-footer">
-            <button class="modal-close-button" @click="closeRadarrModal">Close</button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Tautulli Connection Management Modal -->
-      <div v-if="showTautulliConnect" class="connection-modal-overlay" @click.self="closeTautulliModal">
-        <div class="connection-modal">
-          <div class="modal-header">
-            <h3>Manage Tautulli Connection</h3>
-            <button class="modal-close-x" @click="closeTautulliModal">&times;</button>
-          </div>
-          <div class="modal-body">
-            <TautulliConnection 
-              :connected="tautulliConnected" 
-              @connected="handleTautulliConnected" 
-              @disconnected="handleTautulliDisconnected" 
-              @limitChanged="handleTautulliLimitChanged"
-            />
-          </div>
-          <div class="modal-footer">
-            <button class="modal-close-button" @click="closeTautulliModal">Close</button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Trakt Connection Management Modal -->
-      <div v-if="showTraktConnect" class="connection-modal-overlay" @click.self="closeTraktConnectModal">
-        <div class="connection-modal">
-          <div class="modal-header">
-            <h3>Manage Trakt Connection</h3>
-            <button class="modal-close-x" @click="closeTraktConnectModal">&times;</button>
-          </div>
-          <div class="modal-body">
-            <TraktConnection 
-              :connected="traktConnected" 
-              @connected="onTraktConnectionSuccessful" 
-              @disconnected="disconnectTrakt" 
-              @limitChanged="onTraktLimitChange"
-            />
-          </div>
-          <div class="modal-footer">
-            <button class="modal-close-button" @click="closeTraktConnectModal">Close</button>
-          </div>
-        </div>
-      </div>
-    </teleport>
     
     <!-- Account Settings Tab -->
     <div v-if="activeTab === 'account'" class="settings-section">
@@ -506,6 +364,9 @@
           <button type="button" @click="saveSonarrSettings" class="save-button" :disabled="testingSonarr">
             Save Sonarr Settings
           </button>
+          <button type="button" @click="clearStoredCredentials('sonarr')" class="disconnect-button" :disabled="testingSonarr">
+            Disconnect
+          </button>
         </div>
         
         <div v-if="sonarrConnectionMessage" class="connection-message" :class="{ 'success': sonarrConnectionStatus, 'error': !sonarrConnectionStatus }">
@@ -568,6 +429,10 @@
           <button type="button" @click="saveRadarrSettings" class="save-button" :disabled="testingRadarr">
             Save Radarr Settings
           </button>
+          <button type="button" @click="clearStoredCredentials('radarr')" class="disconnect-button" :disabled="testingRadarr">
+            Disconnect
+          </button>
+          
         </div>
         
         <div v-if="radarrConnectionMessage" class="connection-message" :class="{ 'success': radarrConnectionStatus, 'error': !radarrConnectionStatus }">
@@ -631,7 +496,7 @@
               v-model.number="plexSettings.recentLimit" 
               type="range" 
               min="1" 
-              max="2000" 
+              max="10000" 
               step="1" 
               @change="savePlexLimit"
             />
@@ -646,6 +511,9 @@
           </button>
           <button type="button" @click="savePlexSettings" class="save-button" :disabled="testingPlex">
             Save Plex Settings
+          </button>
+          <button type="button" @click="clearStoredCredentials('plex')" class="disconnect-button" :disabled="testingPlex">
+            Disconnect
           </button>
         </div>
         
@@ -725,7 +593,7 @@
               v-model.number="jellyfinSettings.recentLimit" 
               type="range" 
               min="1" 
-              max="2000" 
+              max="10000" 
               step="1" 
             />
             <span class="slider-value">{{ jellyfinSettings.recentLimit }}</span>
@@ -739,6 +607,9 @@
           </button>
           <button type="button" @click="saveJellyfinSettings" class="save-button" :disabled="testingJellyfin">
             Save Jellyfin Settings
+          </button>
+          <button type="button" @click="clearStoredCredentials('jellyfin')" class="disconnect-button" :disabled="testingJellyfin">
+            Disconnect
           </button>
         </div>
         
@@ -803,7 +674,7 @@
               v-model.number="tautulliSettings.recentLimit" 
               type="range" 
               min="1" 
-              max="2000" 
+              max="10000" 
               step="1" 
             />
             <span class="slider-value">{{ tautulliSettings.recentLimit }}</span>
@@ -817,6 +688,9 @@
           </button>
           <button type="button" @click="saveTautulliSettings" class="save-button" :disabled="testingTautulli">
             Save Tautulli Settings
+          </button>
+          <button type="button" @click="clearStoredCredentials('tautulli')" class="disconnect-button" :disabled="testingTautulli">
+            Disconnect
           </button>
         </div>
         
@@ -884,7 +758,7 @@
                 v-model.number="traktSettings.recentLimit" 
                 type="range" 
                 min="1" 
-                max="2000" 
+                max="10000" 
                 step="1" 
               />
               <span class="slider-value">{{ traktSettings.recentLimit }}</span>
@@ -964,24 +838,18 @@ import tautulliService from '../services/TautulliService';
 import traktService from '../services/TraktService';
 import credentialsService from '../services/CredentialsService';
 import authService from '../services/AuthService';
-import PlexConnection from './PlexConnection.vue';
-import JellyfinConnection from './JellyfinConnection.vue';
-import TautulliConnection from './TautulliConnection.vue';
-import SonarrConnection from './SonarrConnection.vue';
-import RadarrConnection from './RadarrConnection.vue';
+import apiService from '../services/ApiService';
+import databaseStorageUtils from '../utils/DatabaseStorageUtils';
 import TraktConnection from './TraktConnection.vue';
 import TMDBConnection from './TMDBConnection.vue';
+import UserManagement from './UserManagement.vue';
 
 export default {
   name: 'AIServiceSettings',
   components: {
-    PlexConnection,
-    JellyfinConnection,
-    TautulliConnection,
-    SonarrConnection,
-    RadarrConnection,
     TraktConnection,
-    TMDBConnection
+    TMDBConnection,
+    UserManagement
   },
   props: {
     sonarrConnected: {
@@ -1013,11 +881,11 @@ export default {
       default: 'account'
     }
   },
-  data() {
-    return {
-      activeTab: this.defaultActiveTab,
-      showConnectionsPanel: false,
-      showSonarrConnect: false,
+    data() {
+      return {
+        activeTab: this.defaultActiveTab,
+        connectionsCollapsed: false,
+        showSonarrConnect: false,
       showRadarrConnect: false,
       showPlexConnect: false,
       showJellyfinConnect: false,
@@ -1131,9 +999,12 @@ export default {
       return this.models.filter(model => 
         model.id.toLowerCase().includes(search)
       );
+    },
+    isAdmin() {
+      return authService.isAdmin();
     }
   },
-  created() {
+  async created() {
     // Load saved settings initially
     this.loadAllSettings();
   },
@@ -1186,11 +1057,34 @@ export default {
     }
   },
   methods: {
-    // Collapsible Panel Methods
-    toggleConnectionsPanel() {
-      this.showConnectionsPanel = !this.showConnectionsPanel;
+    async clearStoredCredentials(serviceName) {
+      // Delete credentials from server instead of localStorage
+      await credentialsService.deleteCredentials(serviceName);
+
+      switch (serviceName) {
+        case 'sonarr':
+          this.handleSonarrDisconnected();
+          break;
+        case 'radarr':
+          this.handleRadarrDisconnected();
+          break;
+        case 'plex':
+          this.handlePlexDisconnected();
+          break;
+        case 'jellyfin':
+          this.handleJellyfinDisconnected();
+          break;
+        case 'tautulli':
+          this.handleTautulliDisconnected();
+          break;
+        default:
+          console.warn(`Unknown service: ${serviceName}`);
+      }
     },
-    
+    toggleConnectionsPanel() {
+      this.connectionsCollapsed = !this.connectionsCollapsed;
+    },
+
     // Modal Show/Hide Methods
     showPlexConnectModal() {
       this.showPlexConnect = true;
@@ -1318,8 +1212,17 @@ export default {
       this.tautulliSettings.baseUrl = '';
       this.tautulliSettings.apiKey = '';
       this.tautulliSettings.recentLimit = 50;
-      this.$emit('tautulli-settings-updated');
+      
+      // Close the modal
       this.closeTautulliModal();
+      
+      // Notify parent components
+      this.$emit('tautulli-disconnected');
+      this.$emit('tautulli-settings-updated');
+      
+      this.saveSuccess = true;
+      this.saveMessage = 'Disconnected from Tautulli successfully';
+      this.clearSaveMessage();
     },
     
     handleTraktConnected() {
@@ -1444,16 +1347,15 @@ export default {
         if (plexService.isConfigured()) {
           this.plexSettings.baseUrl = plexService.baseUrl;
           this.plexSettings.token = plexService.token;
-          this.plexSettings.recentLimit = parseInt(localStorage.getItem('plexRecentLimit') || '10');
+          this.plexSettings.recentLimit = await databaseStorageUtils.get('plexRecentLimit');
           return;
         }
         
         // If not configured, try to get from server-side storage
         const credentials = await credentialsService.getCredentials('plex');
         if (credentials) {
-          this.plexSettings.baseUrl = credentials.baseUrl || '';
           this.plexSettings.token = credentials.token || '';
-          this.plexSettings.recentLimit = parseInt(localStorage.getItem('plexRecentLimit') || '10');
+          this.plexSettings.recentLimit = await databaseStorageUtils.get('plexRecentLimit');
         }
       } catch (error) {
         console.error('Error loading Plex settings:', error);
@@ -1466,22 +1368,11 @@ export default {
         if (jellyfinService.isConfigured()) {
           this.jellyfinSettings.baseUrl = jellyfinService.baseUrl;
           this.jellyfinSettings.apiKey = jellyfinService.apiKey;
+          this.jellyfinSettings.baseUrl = jellyfinService.baseUrl;
+          this.jellyfinSettings.apiKey = jellyfinService.apiKey;
           this.jellyfinSettings.userId = jellyfinService.userId;
-          this.jellyfinSettings.recentLimit = parseInt(localStorage.getItem('jellyfinRecentLimit') || '10');
-          
-          // Try to look up the username for the current userId
-          if (this.jellyfinSettings.userId) {
-            try {
-              const users = await jellyfinService.getUsers();
-              const user = users.find(u => u.id === this.jellyfinSettings.userId);
-              if (user) {
-                this.jellyfinSettings.username = user.name;
-              }
-            } catch (error) {
-              console.error('Error retrieving username for current user ID:', error);
-            }
-          }
-          
+          this.jellyfinSettings.username = jellyfinService.username; // Load username directly from service
+          this.jellyfinSettings.recentLimit = await databaseStorageUtils.get('jellyfinRecentLimit');
           return;
         }
         
@@ -1490,29 +1381,9 @@ export default {
         if (credentials) {
           this.jellyfinSettings.baseUrl = credentials.baseUrl || '';
           this.jellyfinSettings.apiKey = credentials.apiKey || '';
-          this.jellyfinSettings.userId = credentials.userId || '';
-          this.jellyfinSettings.recentLimit = parseInt(localStorage.getItem('jellyfinRecentLimit') || '10');
-          
-          // If we have credentials but no service configured yet, configure it temporarily to look up username
-          if (this.jellyfinSettings.baseUrl && this.jellyfinSettings.apiKey && this.jellyfinSettings.userId) {
-            try {
-              // Temporarily configure service
-              await jellyfinService.configure(
-                this.jellyfinSettings.baseUrl,
-                this.jellyfinSettings.apiKey,
-                this.jellyfinSettings.userId
-              );
-              
-              // Look up the username
-              const users = await jellyfinService.getUsers();
-              const user = users.find(u => u.id === this.jellyfinSettings.userId);
-              if (user) {
-                this.jellyfinSettings.username = user.name;
-              }
-            } catch (error) {
-              console.error('Error retrieving username for stored user ID:', error);
-            }
-          }
+          this.jellyfinSettings.username = credentials.username || ''; // Load username from credentials
+          this.jellyfinSettings.userId = credentials.userId || ''; // Keep loading userId for potential future use
+          this.jellyfinSettings.recentLimit = await databaseStorageUtils.get('jellyfinRecentLimit');
         }
       } catch (error) {
         console.error('Error loading Jellyfin settings:', error);
@@ -1525,7 +1396,7 @@ export default {
         if (tautulliService.isConfigured()) {
           this.tautulliSettings.baseUrl = tautulliService.baseUrl;
           this.tautulliSettings.apiKey = tautulliService.apiKey;
-          this.tautulliSettings.recentLimit = parseInt(localStorage.getItem('tautulliRecentLimit') || '50');
+          this.tautulliSettings.recentLimit = await databaseStorageUtils.get('tautulliRecentLimit', 50);
           return;
         }
         
@@ -1534,7 +1405,7 @@ export default {
         if (credentials) {
           this.tautulliSettings.baseUrl = credentials.baseUrl || '';
           this.tautulliSettings.apiKey = credentials.apiKey || '';
-          this.tautulliSettings.recentLimit = parseInt(localStorage.getItem('tautulliRecentLimit') || '50');
+          this.tautulliSettings.recentLimit = await databaseStorageUtils.get('tautulliRecentLimit', 50);
         }
       } catch (error) {
         console.error('Error loading Tautulli settings:', error);
@@ -1546,7 +1417,7 @@ export default {
         // First try to get from service directly
         if (traktService.isConfigured()) {
           this.traktSettings.clientId = traktService.clientId;
-          this.traktSettings.recentLimit = parseInt(localStorage.getItem('traktRecentLimit') || '50');
+          this.traktSettings.recentLimit = await databaseStorageUtils.get('traktRecentLimit', 50); // Use async get
           return;
         }
         
@@ -1554,7 +1425,7 @@ export default {
         const credentials = await credentialsService.getCredentials('trakt');
         if (credentials) {
           this.traktSettings.clientId = credentials.clientId || '';
-          this.traktSettings.recentLimit = parseInt(localStorage.getItem('traktRecentLimit') || '50');
+          this.traktSettings.recentLimit = await databaseStorageUtils.get('traktRecentLimit', 50); // Use async get
         }
       } catch (error) {
         console.error('Error loading Trakt settings:', error);
@@ -1868,8 +1739,8 @@ export default {
         // Configure the service with provided details
         await plexService.configure(this.plexSettings.baseUrl, this.plexSettings.token);
         
-        // Store the recent limit in localStorage (server doesn't need this)
-        localStorage.setItem('plexRecentLimit', this.plexSettings.recentLimit.toString());
+        // Store the recent limit in database (server doesn't need this)
+        await databaseStorageUtils.set('plexRecentLimit', this.plexSettings.recentLimit);
         
         // Test the connection
         const success = await plexService.testConnection();
@@ -1912,7 +1783,7 @@ export default {
         
         // Fetch and cache watch history after successful connection
         try {
-          console.log('Fetching Plex watch history for caching...');
+          
           const movieHistory = await plexService.getRecentlyWatchedMovies(this.plexSettings.recentLimit);
           const showHistory = await plexService.getRecentlyWatchedShows(this.plexSettings.recentLimit);
           
@@ -1920,7 +1791,7 @@ export default {
           const apiService = await import('../services/ApiService').then(m => m.default);
           await apiService.saveWatchHistory('movies', movieHistory);
           await apiService.saveWatchHistory('shows', showHistory);
-          console.log(`Cached ${movieHistory.length} movies and ${showHistory.length} shows from Plex`);
+          
         } catch (historyError) {
           console.error('Error fetching and caching Plex watch history:', historyError);
           // Continue with settings save even if history fetch fails
@@ -1943,8 +1814,8 @@ export default {
     
     async savePlexLimit() {
       try {
-        // Store the limit in localStorage first
-        localStorage.setItem('plexRecentLimit', this.plexSettings.recentLimit.toString());
+        // Store the limit in database
+        await databaseStorageUtils.set('plexRecentLimit', this.plexSettings.recentLimit);
         
         // Update the server with the new limit
         await plexService.configure(
@@ -1954,17 +1825,26 @@ export default {
           this.plexSettings.recentLimit // explicitly pass the limit
         );
         
+        // Save to user settings in database
+        try {
+          const userData = await apiService.getSettings();
+          userData.plexRecentLimit = this.plexSettings.recentLimit;
+          await apiService.saveSettings(userData);
+        } catch (settingsError) {
+          console.error('Error saving Plex limit to user settings:', settingsError);
+          // Continue even if settings save fails
+        }
+        
         // Fetch and cache watch history with new limit
         try {
-          console.log('Fetching Plex watch history with updated limit for caching...');
+          
           const movieHistory = await plexService.getRecentlyWatchedMovies(this.plexSettings.recentLimit);
           const showHistory = await plexService.getRecentlyWatchedShows(this.plexSettings.recentLimit);
           
           // Save watch history to server cache
-          const apiService = await import('../services/ApiService').then(m => m.default);
           await apiService.saveWatchHistory('movies', movieHistory);
           await apiService.saveWatchHistory('shows', showHistory);
-          console.log(`Cached ${movieHistory.length} movies and ${showHistory.length} shows from Plex with new limit`);
+          
         } catch (historyError) {
           console.error('Error fetching and caching Plex watch history with new limit:', historyError);
           // Continue with settings save even if history fetch fails
@@ -2024,15 +1904,16 @@ export default {
           return;
         }
         
-        // Configure the service with the looked-up userId
+        // Configure the service with the looked-up userId and username
         await jellyfinService.configure(
           this.jellyfinSettings.baseUrl, 
           this.jellyfinSettings.apiKey,
-          userId
+          userId,
+          this.jellyfinSettings.username // Pass username
         );
         
-        // Store the recent limit in localStorage (server doesn't need this)
-        localStorage.setItem('jellyfinRecentLimit', this.jellyfinSettings.recentLimit.toString());
+        // Store the recent limit in database (server doesn't need this)
+        await databaseStorageUtils.set('jellyfinRecentLimit', this.jellyfinSettings.recentLimit);
         
         // Test the connection
         const result = await jellyfinService.testConnection();
@@ -2094,17 +1975,18 @@ export default {
           return;
         }
         
-        // Configure the service with the looked-up userId and recent limit
+        // Configure the service with the looked-up userId, username, and recent limit
         await jellyfinService.configure(
           this.jellyfinSettings.baseUrl, 
           this.jellyfinSettings.apiKey,
           userId,
+          this.jellyfinSettings.username, // Pass username
           this.jellyfinSettings.recentLimit
         );
         
         // Fetch and cache watch history after successful connection
         try {
-          console.log('Fetching Jellyfin watch history for caching...');
+          
           const movieHistory = await jellyfinService.getRecentlyWatchedMovies(this.jellyfinSettings.recentLimit);
           const showHistory = await jellyfinService.getRecentlyWatchedShows(this.jellyfinSettings.recentLimit);
           
@@ -2112,7 +1994,7 @@ export default {
           const apiService = await import('../services/ApiService').then(m => m.default);
           await apiService.saveWatchHistory('movies', movieHistory);
           await apiService.saveWatchHistory('shows', showHistory);
-          console.log(`Cached ${movieHistory.length} movies and ${showHistory.length} shows from Jellyfin`);
+          
         } catch (historyError) {
           console.error('Error fetching and caching Jellyfin watch history:', historyError);
           // Continue with settings save even if history fetch fails
@@ -2135,6 +2017,9 @@ export default {
     
     async saveJellyfinLimit() {
       try {
+        // Store the limit in database
+        await databaseStorageUtils.set('jellyfinRecentLimit', this.jellyfinSettings.recentLimit);
+        
         // Update the server with the new limit
         await jellyfinService.configure(
           jellyfinService.baseUrl,
@@ -2143,17 +2028,26 @@ export default {
           this.jellyfinSettings.recentLimit
         );
         
+        // Save to user settings in database
+        try {
+          const userData = await apiService.getSettings();
+          userData.jellyfinRecentLimit = this.jellyfinSettings.recentLimit;
+          await apiService.saveSettings(userData);
+        } catch (settingsError) {
+          console.error('Error saving Jellyfin limit to user settings:', settingsError);
+          // Continue even if settings save fails
+        }
+        
         // Fetch and cache watch history with new limit
         try {
-          console.log('Fetching Jellyfin watch history with updated limit for caching...');
+          
           const movieHistory = await jellyfinService.getRecentlyWatchedMovies(this.jellyfinSettings.recentLimit);
           const showHistory = await jellyfinService.getRecentlyWatchedShows(this.jellyfinSettings.recentLimit);
           
           // Save watch history to server cache
-          const apiService = await import('../services/ApiService').then(m => m.default);
           await apiService.saveWatchHistory('movies', movieHistory);
           await apiService.saveWatchHistory('shows', showHistory);
-          console.log(`Cached ${movieHistory.length} movies and ${showHistory.length} shows from Jellyfin with new limit`);
+          
         } catch (historyError) {
           console.error('Error fetching and caching Jellyfin watch history with new limit:', historyError);
           // Continue with settings save even if history fetch fails
@@ -2186,8 +2080,8 @@ export default {
         // Configure the service with provided details
         await tautulliService.configure(this.tautulliSettings.baseUrl, this.tautulliSettings.apiKey);
         
-        // Store the recent limit in localStorage (server doesn't need this)
-        localStorage.setItem('tautulliRecentLimit', this.tautulliSettings.recentLimit.toString());
+        // Store the recent limit in database (server doesn't need this)
+        await databaseStorageUtils.set('tautulliRecentLimit', this.tautulliSettings.recentLimit);
         
         // Test the connection
         const success = await tautulliService.testConnection();
@@ -2225,12 +2119,13 @@ export default {
         await tautulliService.configure(
           this.tautulliSettings.baseUrl, 
           this.tautulliSettings.apiKey,
+          '', // userId (empty string)
           this.tautulliSettings.recentLimit
         );
         
         // Fetch and cache watch history after successful connection
         try {
-          console.log('Fetching Tautulli watch history for caching...');
+          
           const movieHistory = await tautulliService.getRecentlyWatchedMovies(this.tautulliSettings.recentLimit);
           const showHistory = await tautulliService.getRecentlyWatchedShows(this.tautulliSettings.recentLimit);
           
@@ -2238,7 +2133,7 @@ export default {
           const apiService = await import('../services/ApiService').then(m => m.default);
           await apiService.saveWatchHistory('movies', movieHistory);
           await apiService.saveWatchHistory('shows', showHistory);
-          console.log(`Cached ${movieHistory.length} movies and ${showHistory.length} shows from Tautulli`);
+          
         } catch (historyError) {
           console.error('Error fetching and caching Tautulli watch history:', historyError);
           // Continue with settings save even if history fetch fails
@@ -2261,24 +2156,37 @@ export default {
     
     async saveTautulliLimit() {
       try {
+        // Store the limit in database
+        await databaseStorageUtils.set('tautulliRecentLimit', this.tautulliSettings.recentLimit);
+        
         // Update the server with the new limit
         await tautulliService.configure(
           tautulliService.baseUrl,
           tautulliService.apiKey,
+          '', // userId (empty string)
           this.tautulliSettings.recentLimit
         );
         
+        // Save to user settings in database
+        try {
+          const userData = await apiService.getSettings();
+          userData.tautulliRecentLimit = this.tautulliSettings.recentLimit;
+          await apiService.saveSettings(userData);
+        } catch (settingsError) {
+          console.error('Error saving Tautulli limit to user settings:', settingsError);
+          // Continue even if settings save fails
+        }
+        
         // Fetch and cache watch history with new limit
         try {
-          console.log('Fetching Tautulli watch history with updated limit for caching...');
+          
           const movieHistory = await tautulliService.getRecentlyWatchedMovies(this.tautulliSettings.recentLimit);
           const showHistory = await tautulliService.getRecentlyWatchedShows(this.tautulliSettings.recentLimit);
           
           // Save watch history to server cache
-          const apiService = await import('../services/ApiService').then(m => m.default);
           await apiService.saveWatchHistory('movies', movieHistory);
           await apiService.saveWatchHistory('shows', showHistory);
-          console.log(`Cached ${movieHistory.length} movies and ${showHistory.length} shows from Tautulli with new limit`);
+          
         } catch (historyError) {
           console.error('Error fetching and caching Tautulli watch history with new limit:', historyError);
           // Continue with settings save even if history fetch fails
@@ -2315,15 +2223,15 @@ export default {
     
     onTraktLimitChange(limit) {
       this.traktSettings.recentLimit = limit;
-      localStorage.setItem('traktRecentLimit', limit.toString());
+      databaseStorageUtils.set('traktRecentLimit', limit);
       this.$emit('trakt-limit-changed', limit);
     },
     
     async saveTraktLimit() {
-      // Save the recent limit to localStorage
-      localStorage.setItem('traktRecentLimit', this.traktSettings.recentLimit.toString());
-      
       try {
+        // Store the limit in database
+        await databaseStorageUtils.set('traktRecentLimit', this.traktSettings.recentLimit);
+        
         // Update the server with the new limit
         await traktService.configure(
           traktService.clientId,
@@ -2331,17 +2239,26 @@ export default {
           this.traktSettings.recentLimit
         );
         
+        // Save to user settings in database
+        try {
+          const userData = await apiService.getSettings();
+          userData.traktRecentLimit = this.traktSettings.recentLimit;
+          await apiService.saveSettings(userData);
+        } catch (settingsError) {
+          console.error('Error saving Trakt limit to user settings:', settingsError);
+          // Continue even if settings save fails
+        }
+        
         // Fetch and cache watch history after successful update
         try {
-          console.log('Fetching Trakt watch history for caching...');
+          
           const movieHistory = await traktService.getRecentlyWatchedMovies(this.traktSettings.recentLimit);
           const showHistory = await traktService.getRecentlyWatchedShows(this.traktSettings.recentLimit);
           
           // Save watch history to server cache
-          const apiService = await import('../services/ApiService').then(m => m.default);
           await apiService.saveWatchHistory('movies', movieHistory);
           await apiService.saveWatchHistory('shows', showHistory);
-          console.log(`Cached ${movieHistory.length} movies and ${showHistory.length} shows from Trakt`);
+          
         } catch (historyError) {
           console.error('Error fetching and caching Trakt watch history:', historyError);
           // Continue with settings save even if history fetch fails
@@ -2448,8 +2365,8 @@ export default {
       // Also update the model in the OpenAI service to ensure it's saved in both localStorage and server-side credentials
       try {
         if (this.aiSettings.selectedModel) {
-          // Store model in localStorage
-          localStorage.setItem('openaiModel', this.aiSettings.selectedModel);
+          // Store model in database
+          await databaseStorageUtils.set('openaiModel', this.aiSettings.selectedModel);
           
           // Configure the service with the updated model, which will also save to credentials
           await openAIService.configure(
@@ -2525,6 +2442,18 @@ h2 {
   color: var(--button-primary-bg);
   border-bottom: 3px solid var(--button-primary-bg);
   transition: color var(--transition-speed), border-color var(--transition-speed);
+}
+
+.tab-button.admin-tab {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: #4CAF50;
+  border-left: 3px solid #4CAF50;
+}
+
+.tab-button.admin-tab.active {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #2E7D32;
+  border-bottom: 3px solid #2E7D32;
 }
 
 /* Common Settings Section Styling */
@@ -3187,9 +3116,14 @@ body.dark-theme .model-warning {
 .collapsible-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   cursor: pointer;
   padding-bottom: 8px;
+  gap: 10px;
+}
+
+.collapsible-header .header-content {
+  flex: 1;
 }
 
 .collapsible-header:hover h3 {
@@ -3227,6 +3161,7 @@ body.dark-theme .model-warning {
   animation: slideDown 0.3s ease-out;
   transform-origin: top;
   overflow: hidden;
+  padding-top: 8px;
 }
 
 @keyframes slideDown {

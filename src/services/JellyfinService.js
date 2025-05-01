@@ -3,64 +3,115 @@ import axios from 'axios';
 /* eslint-enable no-unused-vars */
 import credentialsService from './CredentialsService';
 import apiService from './ApiService';
+import databaseStorageUtils from '../utils/DatabaseStorageUtils';
 
 class JellyfinService {
   constructor() {
     this.baseUrl = '';
     this.apiKey = '';
     this.userId = '';
-    // Load credentials when instantiated
-    this.loadCredentials();
-  }
+    this.username = ''; // Add username property
+    // Flag to track if credentials have been loaded
+    this.credentialsLoaded = false;
 
+
+    // Load userId asynchronously if not already loaded
+    this.loadUserId();
+  }
+  
+  /**
+   * Load userId from database
+   */
+  async loadUserId() {
+    try {
+      this.userId = await databaseStorageUtils.get('selectedJellyfinUserId') || '';
+    } catch (error) {
+      console.error('Error loading selectedJellyfinUserId:', error);
+      this.userId = '';
+    }
+  }
+  
   /**
    * Load credentials from server-side storage
    */
   async loadCredentials() {
+    // Skip if already loaded to prevent double loading
+    if (this.credentialsLoaded) {
+      return;
+    }
+    
     const credentials = await credentialsService.getCredentials('jellyfin');
     if (credentials) {
       this.baseUrl = credentials.baseUrl || '';
       this.apiKey = credentials.apiKey || '';
-      this.userId = credentials.userId || '';
+      this.username = credentials.username || ''; // Load username
+      // userId is now stored separately via DatabaseStorageUtils
       
       // Load recentLimit if available
       if (credentials.recentLimit) {
-        localStorage.setItem('jellyfinRecentLimit', credentials.recentLimit.toString());
+        await databaseStorageUtils.set('jellyfinRecentLimit', credentials.recentLimit);
       }
+      
+      this.credentialsLoaded = true; // Set flag after successful load
+    }
+  }
+  
+  /**
+   * Update the last history refresh timestamp
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateLastHistoryRefresh() {
+    try {
+      const now = new Date().toISOString();
+      
+      // Use individual setting API to update the timestamp
+      await databaseStorageUtils.set('lastJellyfinHistoryRefresh', now);
+      
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating lastJellyfinHistoryRefresh:', error);
+      return false;
     }
   }
 
-  async configure(baseUrl, apiKey, userId, recentLimit = null) {
+  async configure(baseUrl, apiKey, userId, username, recentLimit = null) { // Add username parameter
     // Ensure baseUrl doesn't end with a slash
     this.baseUrl = baseUrl ? baseUrl.replace(/\/$/, '') : '';
     this.apiKey = apiKey || '';
+    this.username = username || ''; // Set username
     this.userId = userId || '';
+    await databaseStorageUtils.set('selectedJellyfinUserId', this.userId);
 
     const credentials = {
       baseUrl: this.baseUrl,
       apiKey: this.apiKey,
-      userId: this.userId
+      username: this.username // Add username to credentials object
     };
     
     // If recentLimit is provided, store it with the credentials
     if (recentLimit !== null) {
       credentials.recentLimit = recentLimit;
-      // Also store in localStorage for client-side access
-      localStorage.setItem('jellyfinRecentLimit', recentLimit.toString());
+      // Also store in databaseStorageUtils for client-side access
+      await databaseStorageUtils.set('jellyfinRecentLimit', recentLimit);
     }
     
-    // Store credentials server-side
+    // Store credentials server-side (single set of credentials)
     await credentialsService.storeCredentials('jellyfin', credentials);
   }
 
   isConfigured() {
+    // Only check for base URL and API key, as userId can be looked up
     return !!this.baseUrl && !!this.apiKey;
   }
   
   async getUsers() {
-    // Try to load credentials again in case they weren't ready during init
+    // Try to load credentials if not already configured
     if (!this.isConfigured()) {
-      await this.loadCredentials();
+      // Only load credentials if they haven't been loaded yet
+      if (!this.credentialsLoaded) {
+        await this.loadCredentials();
+      }
       
       if (!this.isConfigured()) {
         return [];
@@ -108,55 +159,102 @@ class JellyfinService {
   }
 
   async testConnection() {
-    // Try to load credentials again in case they weren't ready during init
-    if (!this.isConfigured()) {
+    // Ensure credentials are loaded if not already
+    if (!this.credentialsLoaded) {
       await this.loadCredentials();
-      
-      if (!this.isConfigured()) {
-        return { success: false, message: 'Jellyfin URL and API key are required.' };
-      }
+    }
+    
+    // Check basic configuration (URL and API Key)
+    if (!this.isConfigured()) {
+      return { success: false, message: 'Jellyfin URL and API key are required.' };
     }
 
     try {
-      // First check if we can connect to the server
+      // 1. Basic System Info Check
       const systemResponse = await apiService.proxyRequest({
         url: `${this.baseUrl}/System/Info`,
         method: 'GET',
-        headers: {
-          'X-Emby-Token': this.apiKey
-        }
+        headers: { 'X-Emby-Token': this.apiKey }
       });
       
       if (systemResponse.status !== 200) {
-        return { success: false, message: `Error connecting to Jellyfin: ${systemResponse.status}` };
+        return { success: false, message: `Error connecting to Jellyfin server: ${systemResponse.status}` };
       }
-      
-      // If userId is provided, verify it's valid
+
+      // 2. Ensure userId is loaded
+      if (!this.userId) {
+        await this.loadUserId(); // Wait for userId to load if it wasn't already
+      }
+
+      // 3. Primary User Validation (if userId exists)
+      let userValid = false;
+      let userName = '';
       if (this.userId) {
         try {
           const userResponse = await apiService.proxyRequest({
             url: `${this.baseUrl}/Users/${this.userId}`,
             method: 'GET',
-            headers: {
-              'X-Emby-Token': this.apiKey
-            }
+            headers: { 'X-Emby-Token': this.apiKey }
           });
-          
-          return { 
-            success: true, 
-            message: `Connected to Jellyfin successfully! User: ${userResponse.data.Name}`
-          };
+          if (userResponse.status === 200) {
+            userValid = true;
+            userName = userResponse.data.Name;
+          }
         } catch (userError) {
-          // User ID may be invalid
-          return { 
-            success: false, 
-            message: 'Connected to Jellyfin, but the User ID is invalid.'
-          };
+          console.warn(`Initial validation for userId ${this.userId} failed. Will attempt username lookup.`);
+          userValid = false;
         }
       }
+
+      // 4. Fallback: Lookup userId by username if primary validation failed or userId was missing
+      if (!userValid && this.username) {
+        console.log(`Attempting to find userId for username: ${this.username}`);
+        const foundUserId = await this.getUserIdByUsername(this.username);
+        
+        if (foundUserId) {
+          console.log(`Found userId ${foundUserId} for username ${this.username}. Validating...`);
+          // Store the found ID and try validation again
+          this.userId = foundUserId;
+          await databaseStorageUtils.set('selectedJellyfinUserId', this.userId);
+          
+          try {
+            const userResponse = await apiService.proxyRequest({
+              url: `${this.baseUrl}/Users/${this.userId}`,
+              method: 'GET',
+              headers: { 'X-Emby-Token': this.apiKey }
+            });
+            if (userResponse.status === 200) {
+              userValid = true;
+              userName = userResponse.data.Name;
+            }
+          } catch (fallbackUserError) {
+            console.error(`Validation failed even after username lookup for userId ${this.userId}.`);
+            userValid = false;
+          }
+        } else {
+          console.warn(`Could not find userId for username: ${this.username}`);
+        }
+      }
+
+      // 5. Final Result
+      if (userValid) {
+        return { 
+          success: true, 
+          message: `Connected to Jellyfin successfully! User: ${userName}`
+        };
+      } else if (!this.username && !this.userId) {
+        // Connected to server, but no user info available to check
+        return { success: true, message: 'Connected to Jellyfin server, but no user specified.' };
+      } else {
+        // Connected to server, but user validation failed
+        return { 
+          success: false, 
+          message: 'Connected to Jellyfin server, but failed to validate the specified user.' 
+        };
+      }
       
-      return { success: true, message: 'Connected to Jellyfin successfully!' };
     } catch (error) {
+      // Catch errors from the initial /System/Info call or other unexpected issues
       return { 
         success: false, 
         message: `Error connecting to Jellyfin: ${error.message || 'Unknown error'}`
@@ -165,12 +263,30 @@ class JellyfinService {
   }
 
   async getRecentlyWatchedMovies(limit = 50, daysAgo = null) {
-    // Try to load credentials again in case they weren't ready during init
+    // Try to load credentials if not already configured
     if (!this.isConfigured() || !this.userId) {
-      await this.loadCredentials();
+      // Only load credentials if they haven't been loaded yet
+      if (!this.credentialsLoaded) {
+        await this.loadCredentials();
+      }
       
       if (!this.isConfigured() || !this.userId) {
         return [];
+      }
+    }
+    
+    // Try to get the limit from database first
+    const storedLimit = await databaseStorageUtils.get('jellyfinRecentLimit');
+    if (storedLimit !== null) {
+      limit = storedLimit;
+    } else {
+      // Fall back to credentials if not in database
+      const credentials = await credentialsService.getCredentials('jellyfin');
+      if (credentials && credentials.recentLimit !== undefined) {
+        // Override the provided limit with the stored limit
+        limit = credentials.recentLimit;
+        // Store it in the database for next time
+        await databaseStorageUtils.set('jellyfinRecentLimit', limit);
       }
     }
 
@@ -212,12 +328,30 @@ class JellyfinService {
   }
 
   async getRecentlyWatchedShows(limit = 50, daysAgo = null) {
-    // Try to load credentials again in case they weren't ready during init
+    // Try to load credentials if not already configured
     if (!this.isConfigured() || !this.userId) {
-      await this.loadCredentials();
+      // Only load credentials if they haven't been loaded yet
+      if (!this.credentialsLoaded) {
+        await this.loadCredentials();
+      }
       
       if (!this.isConfigured() || !this.userId) {
         return [];
+      }
+    }
+    
+    // Try to get the limit from database first
+    const storedLimit = await databaseStorageUtils.get('jellyfinRecentLimit');
+    if (storedLimit !== null) {
+      limit = storedLimit;
+    } else {
+      // Fall back to credentials if not in database
+      const credentials = await credentialsService.getCredentials('jellyfin');
+      if (credentials && credentials.recentLimit !== undefined) {
+        // Override the provided limit with the stored limit
+        limit = credentials.recentLimit;
+        // Store it in the database for next time
+        await databaseStorageUtils.set('jellyfinRecentLimit', limit);
       }
     }
 
